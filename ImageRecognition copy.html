@@ -1,0 +1,134 @@
+<html>
+	<body>
+		<div>
+			<!-- Shows all foods ordered from most likely match to least likely match. -->
+			<p id = "output"></p>
+			<b id = "time"></b>
+		</div>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+		<script type="text/javascript" src="https://sdk.clarifai.com/js/clarifai-latest.js"></script>
+		<script src="retina-sdk-1.0.min.js"></script>
+		<script>
+			// Change this link to the image of the food you want to recognize. (It should guess this image correctly)
+			var linkToImage = "http://www.seriouseats.com/recipes/assets_c/2015/05/20150511-scrambled-eggs-vicky-wasik-11-thumb-1500xauto-423059.jpg";
+
+			// Change this to the list of dining options on the day and location the input image was taken at.
+			var inputs = ["Bacon", "French Toast", "Hard Cooked Eggs", "Scrambled Eggs", "Vegetarian Sausage Patty", "Chai Oatmeal", "White Rice", "Tater-Tots", "Pancake Syrup", "Fruit Tray"];
+
+
+			// Jumbled mess of recognition code.
+			var now = new Date().getTime();
+			var fullClient = retinaSDK.FullClient("5dfc0c20-a095-11e7-9586-f796ac0731fb", "http://api.cortical.io/rest/", "en_associative");
+			var liteClient = retinaSDK.LiteClient("5dfc0c20-a095-11e7-9586-f796ac0731fb");
+			//var liteClient = retinaSDK.LiteClient("88cfc9c0-651f-11e7-b22d-93a4ae922ff1");
+			const app = new Clarifai.App({apiKey: 'ef5deeb1449d41629720e2177bdacb84'});
+			app.models.predict(Clarifai.FOOD_MODEL, linkToImage).then(
+			    function(response) {
+			    	var words = "";
+			    	var wordArray = [];
+			      $.each(response.outputs[0].data.concepts, function(i, val) {
+			      	//console.log(val.name, val.value);
+			      	words = words + val.name + " ";
+			      	wordArray.push([val.name, val.value]);
+			      });
+			      var inpuDict = {};
+			      
+				var encodedAuth = 'Basic ' + window.btoa("a68f17c2c5ab8c904f65" + ':' + "afa63e36d111a1a8398158b3f7059b8e614a4df4");
+				var imageArray = [];
+			      $.each(inputs, function(i, val) {
+			      	inpuDict[val] = 0;
+			      	$.ajax({
+			      		method: "GET",
+			      		url: "https://api.shutterstock.com/v2/images/search?per_page=1&query="+val,
+			      		headers: {
+			      			Authorization: encodedAuth
+			      		},
+			      		success: function(data) {
+			      			//imageArray.push([val, data.data.assets.preview.url]);
+			      			console.log(data);
+			      		},
+			      	});
+			      	//console.log(1);
+			      });
+
+			      
+			      //$.each([words], function(i, val) {
+			      	$.each(inputs, function(i2, val2) {
+			      		//console.log([{"term": val2}, {"term": val[0]}]);
+			      		//var typeOf;
+			      		//console.log(2);
+			      		
+			      			//console.log("hi ");
+			      			comp = fullClient.compare({comparison: [{"text": val2}, {"text": words}]});
+			      			//comp = fullClient.compare(val2, words);
+			      			//console.log("working");
+			      			//console.log(comp.cosineSimilarity);
+			      			if (comp.cosineSimilarity > 0) {
+		      					inpuDict[val2] = inpuDict[val2] + (comp.cosineSimilarity * 1);
+		      				}
+
+		      				if (i2 == (inputs.length - 1)) {
+		      					console.log("heyyo");
+		      					doneish();
+		      				}
+
+			      		//comp = fullClient.compare({comparison: [{"text": val2}, {"text": val[0]}]});
+			      		
+			      		//$.ajax({
+			      		//	url: "http://api.cortical.io:80/rest/compare?retina_name=en_associative",
+			      		//	crossDomain: true,
+			      		//	method: "POST",
+			      		//	dataType: "json",
+			      		//	headers: {"api-key": "88cfc9c0-651f-11e7-b22d-93a4ae922ff1"},
+			      		//	data: [{"term": val2}, {"text": val[0]}],
+			      		//	success: function(data) {
+			      		//		console.log(data);
+			      		//		inpuDict[val2] += data.cosineSimilarity * val[1];
+			      		//	},
+			      		//	error: function(data) {
+			      		//		console.log("err");
+			      		//	}
+			     		//});
+			       	});
+			      //});
+
+			      function doneish() {
+			      console.log(words);
+			      console.log(inpuDict);
+
+			      var arry = [];
+			      $.each(inputs, function(i, val) {
+			      	arry.push(inpuDict[val]);
+			      });
+			      arry.sort();
+			      var finarr = [];
+			      $.each(arry, function(i,val) {
+			      	$.each(inputs, function(i2, val2) {
+			      		if (inpuDict[val2] === val) {
+			      			finarr.push(val2);
+			      		}
+			      	});
+			      });
+			      finarr.reverse();
+			      $("#output").text(finarr);
+			      var nownew = new Date().getTime();
+			      var distance = nownew - now;
+			      var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+				  var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+				  var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+				  var seconds = (distance % (1000 * 60)) / 1000;
+			      $("#time").text(seconds + "s ");
+			      //console.log(inpuDict);
+			      //$("#output").text(response);
+			      //console.log(response);
+			      //console.log(imageArray);
+			  }
+			    },
+			    function(err) {
+			      $("#output").text(err);
+			    }
+			);
+			//ef5deeb1449d41629720e2177bdacb84
+		</script>
+	</body>
+</html>
